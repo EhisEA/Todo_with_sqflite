@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqlbrite/sqlbrite.dart';
 import 'package:todo_sqflite/models/todo_model.dart';
 
 const String databaseName = 'todo3.db';
@@ -13,6 +13,116 @@ const String columnDescription = 'description';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   DatabaseHelper._init();
+
+  // Constants for the database name and version.
+  static const _databaseName = 'Todo6.db';
+  static const _databaseVersion = 1;
+  // Table name
+  static const todoTable = 'Todo';
+
+  static BriteDatabase? _streamDatabase;
+  static Database? _database;
+
+// TODO: Add create database code here
+
+// create table
+  Future _onCreate(Database db, int version) async {
+    // create todo table in the database
+    await db.execute('''
+      Create Table $todoTable(
+        ${TodoField.id} Integer Primary Key autoincrement,
+        ${TodoField.title} Text not null,
+        ${TodoField.description} Text not null
+
+      )
+      ''');
+  }
+
+// open
+
+  Future<Database> _initDatabase() async {
+    // get database directory
+    final documentDirectory = await getDatabasesPath();
+    // get path to databas file
+    final path = join(documentDirectory, _databaseName);
+
+    // open database with path
+    // set database version
+    // set the onCreate function is called
+    // when database is newly created
+    return openDatabase(path, version: _databaseVersion, onCreate: _onCreate);
+  }
+
+  // get database object/instance
+  Future<Database> get database async {
+    // retrun database if it already exist
+    if (_database != null) return _database!;
+
+    // initialise database
+    // set _database and _streamDatabase with database value
+    if (_database == null) {
+      _database = await _initDatabase();
+      _streamDatabase = BriteDatabase(_database!);
+    }
+
+    return _database!;
+  }
+
+  // get stream database object/instance
+  Future<BriteDatabase> get streamDatabase async {
+    // check and initialize database
+    await database;
+    // retrun _streamDatabase instance
+    return _streamDatabase!;
+  }
+
+//insert
+
+  Future<int> insert(String table, Map<String, dynamic> rowData) async {
+    final db = await instance.streamDatabase;
+    return db.insert(table, rowData);
+  }
+
+  Future<int> insertTodo(
+      {required String title, required String description}) async {
+    Map<String, dynamic> value = {
+      TodoField.title: title,
+      TodoField.description: description,
+    };
+    return insert(todoTable, value);
+  }
+
+// Fetch
+  Stream<List<Todo>> watchTodo() async* {
+    final db = await instance.streamDatabase;
+    yield* db.createQuery(todoTable).mapToList((row) => Todo.fromJson(row));
+  }
+
+  Future<List<Todo>> getAllTodo() async {
+    final db = await instance.database;
+    List<Map<String, dynamic>> data = await db.query(todoTable);
+    return data.map<Todo>((row) => Todo.fromJson(row)).toList();
+  }
+
+//Delete
+  Future<int> delete(String table, int id) async {
+    final db = await instance.streamDatabase;
+    return db.delete(
+      table,
+      where: "${TodoField.id}=?",
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteTodo(Todo todo) {
+    return delete(todoTable, todo.id);
+  }
+
+//close
+
+  void close() async {
+    await _streamDatabase?.close();
+  }
 }
 
 class TodoProvider {

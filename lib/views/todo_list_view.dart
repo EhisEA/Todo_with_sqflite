@@ -1,8 +1,9 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
-import 'package:todo_sqflite/views/todo_list_view_model.dart';
+import 'package:todo_sqflite/models/todo_model.dart';
+import 'package:todo_sqflite/views/view_models/todo_list_view_model.dart';
+
+import 'create_todo.dart';
 
 class TodoListView extends StatelessWidget {
   const TodoListView({Key? key}) : super(key: key);
@@ -10,10 +11,14 @@ class TodoListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Todos"),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (constext) => const Er()));
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (constext) => const CreateTodo(),
+          ));
         },
         child: const Icon(Icons.add),
       ),
@@ -24,61 +29,32 @@ class TodoListView extends StatelessWidget {
           if (model.isBusy) {
             return const Center(child: CircularProgressIndicator());
           }
-          return ListView.builder(
-            itemCount: model.todos.length,
-            itemBuilder: (context, index) {
-              log(model.todos[index].toMap().toString());
-              return ListTile(
-                leading: CircleAvatar(
-                  child: Text(model.todos[index].id.toString()),
-                ),
-                title: Text(
-                  model.todos[index].title,
-                  style: const TextStyle(color: Colors.black),
-                ),
-                subtitle: Text(
-                  model.todos[index].description,
-                  style: const TextStyle(color: Colors.black),
-                ),
+          return StreamBuilder<List<Todo>>(
+            stream: model.sqlService.watchTodo(),
+            builder: (context, snapshot) {
+              List<Todo> todos = snapshot.data ?? [];
+              return ListView.builder(
+                itemCount: todos.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    leading: CircleAvatar(
+                      child: Text(todos[index].id.toString()),
+                    ),
+                    title: Text(
+                      todos[index].title,
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    subtitle: Text(
+                      todos[index].description,
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                  );
+                },
               );
             },
           );
         },
       ),
     );
-  }
-}
-
-class Er extends StatelessWidget {
-  const Er({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ViewModelBuilder<AddTodoViewModel>.reactive(
-        viewModelBuilder: () => AddTodoViewModel(),
-        builder: (context, model, _) {
-          return Scaffold(
-              body: Center(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextField(
-                  controller: model.title,
-                ),
-                TextField(
-                  controller: model.description,
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    bool result = await model.addTodo();
-                    if (result) Navigator.of(context).pop();
-                  },
-                  child: const Text("Add"),
-                ),
-              ],
-            ),
-          ));
-        });
   }
 }
